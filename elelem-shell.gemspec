@@ -25,6 +25,8 @@ Gem::Specification.new do |spec|
       (f == gemspec) || f.start_with?(*%w[bin/ Gemfile .gitignore])
     end
   end
+  spec.bindir = "exe"
+  spec.executables = ["elelem-shell"]
   spec.require_paths = ["lib"]
 
   spec.add_dependency "elelem", ">= 0.14", "< 1"
