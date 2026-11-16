@@ -27,12 +27,12 @@ Gem::Specification.new do |spec|
   end
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "elelem", ">= 0.13", "< 1"
-  spec.add_dependency "elelem-anthropic", ">= 0.2", "< 1"
+  spec.add_dependency "elelem", ">= 0.14", "< 1"
+  spec.add_dependency "elelem-anthropic", ">= 0.3", "< 1"
   spec.add_dependency "elelem-mcp", ">= 0.2", "< 1"
   spec.add_dependency "elelem-ollama", ">= 0.2", "< 1"
   spec.add_dependency "elelem-openai", ">= 0.2", "< 1"
   spec.add_dependency "elelem-server", ">= 0.2", "< 1"
   spec.add_dependency "elelem-skills", ">= 0.3", "< 1"
-  spec.add_dependency "elelem-tools", ">= 0.2", "< 1"
+  spec.add_dependency "elelem-tools", ">= 0.3", "< 1"
 end
