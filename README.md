@@ -7,12 +7,16 @@ and providers.
 
 ```sh
 gem install elelem-shell
-mkdir -p ~/.agents/plugins && echo 'require "elelem/shell"' > ~/.agents/plugins/shell.rb
 ```
 
-The second line turns on the opt-in plugins: `elelem/shell` requires
-elelem-tools, elelem-mcp and elelem-skills. elelem loads a provider when you
-pick it with `-p NAME`.
+Then run `elelem-shell`. It is `elelem` with elelem-tools, elelem-mcp and
+elelem-skills loaded. Pick a provider with `-p NAME`.
+
+To run it without installing, use [rv](https://rv.dev):
+
+```sh
+rvx elelem-shell
+```
 
 ## What it installs
 
