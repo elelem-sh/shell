@@ -2,6 +2,5 @@
 # frozen_string_literal: true
 
 require "elelem/shell"
-require "elelem/cli"
 
-Elelem::CLI.new(ARGV).run
+Elelem::Shell.start(ARGV)
