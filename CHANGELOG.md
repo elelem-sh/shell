@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/elelem-sh/shell/compare/v0.1.0...v0.2.0) (2026-11-17)
+
+
+### Features
+
+* default to the provider whose standard API key is set, then a local llama model, then ollama, then demo ([d99680f](https://github.com/elelem-sh/shell/commit/d99680fff2b1f4a7efff62543b50d9aaf2e1ffdb))
+
 ## 0.1.0 (2026-11-16)
 
 
