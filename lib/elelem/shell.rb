@@ -12,7 +12,7 @@ require "elelem/skills"
 
 module Elelem
   module Shell
-    PROVIDER_FLAG = /\A(-p|--p)/
+    PROVIDER_FLAG = /\A(-p|--pro)/
     NOTICE = "elelem: no model or API key found; using the demo provider. " \
              "Run curl -fsSL https://elelem.sh/install | sh, or set ANTHROPIC_API_KEY or OPENAI_API_KEY."
 

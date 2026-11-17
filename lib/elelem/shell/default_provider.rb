@@ -7,12 +7,12 @@ module Elelem
       KEYS = {
         "anthropic" => [%w[ANTHROPIC_API_KEY]],
         "openai" => [%w[OPENAI_API_KEY], %w[OPENAI_BASE_URL]],
-        "gemini" => [%w[GEMINI_API_KEY]],
-        "openrouter" => [%w[OPENROUTER_API_KEY]],
-        "groq" => [%w[GROQ_API_KEY]],
-        "mistral" => [%w[MISTRAL_API_KEY]],
-        "cerebras" => [%w[CEREBRAS_API_KEY]],
-        "cloudflare" => [%w[CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID]]
+        "gemini" => [%w[GEMINI_API_KEY GEMINI_MODEL]],
+        "openrouter" => [%w[OPENROUTER_API_KEY OPENROUTER_MODEL]],
+        "groq" => [%w[GROQ_API_KEY GROQ_MODEL]],
+        "mistral" => [%w[MISTRAL_API_KEY MISTRAL_MODEL]],
+        "cerebras" => [%w[CEREBRAS_API_KEY CEREBRAS_MODEL]],
+        "cloudflare" => [%w[CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_MODEL]]
       }.freeze
 
       def initialize(env = ENV, models_dir: "~/.agents/models")
@@ -26,7 +26,11 @@ module Elelem
 
       private
 
-      def detected = value("ELELEM_PROVIDER") || keyed || local
+      def detected
+        return @detected if defined?(@detected)
+
+        @detected = value("ELELEM_PROVIDER") || keyed || local
+      end
 
       def keyed
         KEYS.find { |_, alternatives| alternatives.any? { |names| names.all? { |name| value(name) } } }&.first
@@ -40,10 +44,14 @@ module Elelem
 
       def llama?
         require "elelem/llama/model_resolver"
-        Llama::ModelResolver.resolve(model: nil, env: @env, models_dir: @models_dir)
+        Llama::ModelResolver.resolve(model: nil, env: resolver_env, models_dir: @models_dir)
         true
       rescue LoadError, RuntimeError
         false
+      end
+
+      def resolver_env
+        value("ELELEM_GGUF_MODEL") ? @env : @env.to_h.except("ELELEM_GGUF_MODEL")
       end
 
       def value(name)

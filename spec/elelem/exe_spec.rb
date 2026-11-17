@@ -8,6 +8,7 @@ RSpec.describe "exe/elelem-shell" do
   let(:detected) do
     %w[ELELEM_PROVIDER ANTHROPIC_API_KEY OPENAI_API_KEY OPENAI_BASE_URL GEMINI_API_KEY OPENROUTER_API_KEY
        GROQ_API_KEY MISTRAL_API_KEY CEREBRAS_API_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ELELEM_GGUF_MODEL
+       MISTRAL_MODEL
        OLLAMA_HOST]
   end
 
@@ -42,7 +43,7 @@ RSpec.describe "exe/elelem-shell" do
   end
 
   it "shows the detected provider as the default" do
-    output, = run("help", "MISTRAL_API_KEY" => "key")
+    output, = run("help", "MISTRAL_API_KEY" => "key", "MISTRAL_MODEL" => "model")
 
     expect(output).to include("(default: mistral)")
   end
