@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/elelem-sh/shell/compare/v0.2.0...v0.2.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* detect a hosted provider only when its model is set too, and treat a blank ELELEM_GGUF_MODEL as unset ([3676ffa](https://github.com/elelem-sh/shell/commit/3676ffa00477fcb21105c2d6b7c8b584350f4a3c))
+
 ## [0.2.0](https://github.com/elelem-sh/shell/compare/v0.1.0...v0.2.0) (2026-11-17)
 
 
