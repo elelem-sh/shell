@@ -6,7 +6,7 @@ module Elelem
       FALLBACK = "demo"
       KEYS = {
         "anthropic" => [%w[ANTHROPIC_API_KEY]],
-        "openai" => [%w[OPENAI_API_KEY], %w[OPENAI_BASE_URL]],
+        "openai" => [%w[OPENAI_API_KEY], %w[OPENAI_API_KEY_COMMAND], %w[OPENAI_BASE_URL]],
         "gemini" => [%w[GEMINI_API_KEY GEMINI_MODEL]],
         "openrouter" => [%w[OPENROUTER_API_KEY OPENROUTER_MODEL]],
         "groq" => [%w[GROQ_API_KEY GROQ_MODEL]],

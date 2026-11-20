@@ -18,6 +18,7 @@ RSpec.describe Elelem::Shell do
     {
       "ANTHROPIC_API_KEY" => "anthropic",
       "OPENAI_API_KEY" => "openai",
+      "OPENAI_API_KEY_COMMAND" => "openai",
       "OPENAI_BASE_URL" => "openai",
       "OLLAMA_HOST" => "ollama"
     }.each do |name, provider|
