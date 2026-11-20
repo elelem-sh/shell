@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/elelem-sh/shell/compare/v0.2.1...v0.3.0) (2026-11-20)
+
+
+### Features
+
+* detect the openai provider when OPENAI_API_KEY_COMMAND is set ([783dcd2](https://github.com/elelem-sh/shell/commit/783dcd2c1f5eb7a0b451dc48740586ee85c26cd7))
+
+
+### Bug Fixes
+
+* require elelem-openai 0.5 for OPENAI_API_KEY_COMMAND ([08e56b7](https://github.com/elelem-sh/shell/commit/08e56b77ef7dbcdd7f58b69cb33335df9c10ef23))
+
 ## [0.2.1](https://github.com/elelem-sh/shell/compare/v0.2.0...v0.2.1) (2026-11-17)
 
 
