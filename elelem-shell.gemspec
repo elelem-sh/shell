@@ -40,7 +40,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "elelem-mcp", ">= 0.2", "< 1"
   spec.add_dependency "elelem-mistral", ">= 0.1", "< 1"
   spec.add_dependency "elelem-ollama", ">= 0.2", "< 1"
-  spec.add_dependency "elelem-openai", ">= 0.3", "< 1"
+  spec.add_dependency "elelem-openai", ">= 0.5", "< 1"
   spec.add_dependency "elelem-openrouter", ">= 0.1", "< 1"
   spec.add_dependency "elelem-server", ">= 0.2", "< 1"
   spec.add_dependency "elelem-skills", ">= 0.3", "< 1"
