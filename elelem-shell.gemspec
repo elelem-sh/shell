@@ -20,12 +20,7 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = "https://github.com/elelem-sh/shell"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  gemspec = File.basename(__FILE__)
-  spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
-    ls.readlines("\x0", chomp: true).reject do |f|
-      (f == gemspec) || f.start_with?(*%w[bin/ Gemfile .gitignore])
-    end
-  end
+  spec.files = Dir["LICENSE.txt", "lib/**/*.rb", "exe/*"]
   spec.bindir = "exe"
   spec.executables = ["elelem-shell"]
   spec.require_paths = ["lib"]
