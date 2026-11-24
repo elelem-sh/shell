@@ -4,10 +4,9 @@ set -eu
 rv_installer=https://github.com/spinel-coop/rv/releases/download/v0.7.2/rv-installer.sh
 rv_installer_sha256=0160f8c875b9ae6a52c1914ad1761a2673dbbe80b01aa9fb3f85f7169d19f962
 rubygems=https://rubygems.org/api/v1/versions
-model_url=https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/22c9fc8a8c7700b76a1789366280a6a5a1ad1120/Qwen3-4B-UD-Q4_K_XL.gguf
-model_file=Qwen3-4B-UD-Q4_K_XL.gguf
-model_bytes=2546341152
-model_sha256=f6e3fb6c2cdc869d16e66c719e94f2c02095d195967230e759a2d77fe814c71f
+huggingface=https://huggingface.co/unsloth
+previous_model_file=Qwen3-4B-UD-Q4_K_XL.gguf
+small_memory_kb=12582912
 marker='# elelem.sh installer'
 
 say() {
@@ -55,9 +54,50 @@ check_platform() {
     Linux | Darwin) ;;
     *) fail "only Linux and macOS are supported here; on Windows run: gem install --conservative elelem-shell elelem-llama, then run elelem-shell" ;;
   esac
+  arch=$(uname -m)
+  case "$arch" in
+    x86_64 | amd64 | aarch64 | arm64) ;;
+    *) fail "$arch is not supported; elelem runs on 64-bit x86 and ARM" ;;
+  esac
   musl=no
   if [ "$os" = Linux ] && ldd --version 2>&1 | grep -qi musl; then
     musl=yes
+  fi
+  [ "$os" = Linux ] && [ "$musl" = no ] && check_glibc
+  return 0
+}
+
+check_glibc() {
+  glibc=$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{ print $2 }')
+  [ -n "$glibc" ] || return 0
+  major=${glibc%%.*}
+  minor=${glibc#*.}
+  minor=${minor%%.*}
+  [ "$major" -gt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -ge 35 ]; } && return 0
+  fail "glibc $glibc is too old; elelem needs glibc 2.35 or newer, such as Ubuntu 22.04, Debian 12 or Fedora 36"
+}
+
+memory_kb() {
+  if [ "$os" = Darwin ]; then
+    echo $(($(sysctl -n hw.memsize) / 1024))
+  else
+    awk '/^MemTotal:/ { print $2 }' /proc/meminfo
+  fi
+}
+
+choose_model() {
+  if [ "$(memory_kb)" -lt "$small_memory_kb" ]; then
+    model_file=Qwen3.5-2B-Q4_K_M.gguf
+    model_url=$huggingface/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/$model_file
+    model_bytes=1280835840
+    model_sha256=aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+    model_size="1.3 GB"
+  else
+    model_file=Qwen3.5-4B-Q4_K_M.gguf
+    model_url=$huggingface/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/$model_file
+    model_bytes=2740937888
+    model_sha256=00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4
+    model_size="2.7 GB"
   fi
 }
 
@@ -150,7 +190,13 @@ latest_version() {
 }
 
 install_gem() {
-  GEM_HOME=$1 GEM_PATH=$2 "$ruby" "$(dirname "$ruby")/gem" install --norc --no-document --conservative "$3" -v "$4"
+  for attempt in 1 2 3; do
+    GEM_HOME=$1 GEM_PATH=$2 "$ruby" "$(dirname "$ruby")/gem" install --norc --no-document --conservative "$3" -v "$4" &&
+      return 0
+    [ "$attempt" = 3 ] && return 1
+    warn "installing $3 $4 failed; trying again in $((attempt * 10)) s"
+    sleep $((attempt * 10))
+  done
 }
 
 fingerprint() {
@@ -248,7 +294,7 @@ reject_llama() {
 install_llama() {
   home=$data/llama/elelem-llama-$llama_version
   if ! has_llama "$home"; then
-    fetch_llama "$home" "$llama_version" || reject_llama "$home" "llama.cpp did not compile; see the output above" || return 1
+    fetch_llama "$home" "$llama_version" || reject_llama "$home" "elelem-llama did not install; see the output above" || return 1
     llama_loads "$home" || reject_llama "$home" "llama.cpp does not load on this system; see the error above" || return 1
   fi
   llama_home=$home
@@ -257,7 +303,7 @@ install_llama() {
 needs_model() {
   [ "${ELELEM_NO_MODEL:-}" = 1 ] && return 1
   [ -n "${ELELEM_GGUF_MODEL:-}" ] && return 1
-  [ ! -e "$models/default.gguf" ]
+  [ ! -e "$models/default.gguf" ] || [ "$(readlink "$models/default.gguf")" = "$previous_model_file" ]
 }
 
 check_disk() {
@@ -271,7 +317,7 @@ check_disk() {
 
 download_model() {
   part=$models/$model_file.part
-  say "downloading $model_file (2.5 GB, set ELELEM_NO_MODEL=1 to skip)"
+  say "downloading $model_file ($model_size, set ELELEM_NO_MODEL=1 to skip)"
   if [ "$(bytes_in "$part")" != "$model_bytes" ]; then
     curl -fL -C - --retry 3 -o "$part" "$model_url"
   fi
@@ -286,6 +332,7 @@ install_model() {
   mkdir -p "$models"
   [ -f "$models/$model_file" ] || download_model
   ln -sf "$model_file" "$models/default.gguf"
+  rm -f "$models/$previous_model_file"
 }
 
 install_local_model() {
@@ -306,19 +353,53 @@ hint_old_install() {
   say "an older install is still in rv; optional cleanup: $rv tool uninstall elelem-shell"
 }
 
-finish() {
-  say "Ready. Run: elelem-shell"
-  case ":$PATH:" in
-    *":$bin:"*) ;;
-    *) say "add this to your shell profile: export PATH=\"$bin:\$PATH\"" ;;
+profile_line() {
+  case "${SHELL:-}" in
+    */fish) echo "add to ~/.config/fish/config.fish: fish_add_path $bin" ;;
+    */zsh) echo "add to ~/.zshrc: export PATH=\"$bin:\$PATH\"" ;;
+    */bash) echo "add to ~/.bashrc: export PATH=\"$bin:\$PATH\"" ;;
+    *) echo "add to ~/.profile: export PATH=\"$bin:\$PATH\"" ;;
   esac
-  say "to use a hosted model, set its key and pick it, such as: elelem-shell -p anthropic"
+}
+
+model_in_use() {
+  if [ -n "${ELELEM_GGUF_MODEL:-}" ]; then
+    echo "$ELELEM_GGUF_MODEL"
+  elif [ -L "$models/default.gguf" ]; then
+    readlink "$models/default.gguf"
+  elif [ -e "$models/default.gguf" ]; then
+    echo "$models/default.gguf"
+  else
+    echo none
+  fi
+}
+
+provider_in_use() {
+  "$ruby" --disable=rubyopt -W0 -e "$(gem_paths)"'
+    require "elelem/shell"
+    print Elelem::Shell::DefaultProvider.new.name
+  ' 2>/dev/null || echo unknown
+}
+
+finish() {
   hint_old_install
   remove="rm -rf $data $wrapper"
   if model_installed; then
     remove="$remove $models/default.gguf $models/$model_file"
   fi
   say "Uninstall: $remove"
+  say "to use a hosted model, set its key and pick it, such as: elelem-shell -p anthropic"
+  command=elelem-shell
+  case ":$PATH:" in
+    *":$bin:"*) ;;
+    *)
+      command=$wrapper
+      say "$bin is not on your PATH; $(profile_line)"
+      ;;
+  esac
+  say "model: $(model_in_use)"
+  say "provider: $(provider_in_use)"
+  say "Ready. Run: $command"
 }
 
 main() {
@@ -328,6 +409,7 @@ main() {
   wrapper=$bin/elelem-shell
   unset RUBYOPT RUBYLIB BUNDLE_GEMFILE
   check_platform
+  choose_model
   check_paths
   check_wrapper
   check_fetch_tools
