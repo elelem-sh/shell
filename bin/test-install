@@ -2,7 +2,7 @@
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
-installer=$root/static/install
+installer=$root/install
 tripwire=$root/bin/without-compilers
 limit=${ELELEM_TEST_TIMEOUT:-2400}
 path=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -23,9 +23,9 @@ run() {
 }
 
 demo="
-  elelem --help | grep -q 'Usage: elelem'
-  elelem -p demo 'echo ok' | grep 'exit 0'
-  GEM_HOME=/user/gems elelem -p demo 'echo \$GEM_HOME' 2>&1 | grep -x /user/gems
+  elelem-shell --help | grep -q 'Usage: elelem-shell'
+  elelem-shell -p demo 'echo ok' | grep 'exit 0'
+  GEM_HOME=/user/gems elelem-shell -p demo 'echo \$GEM_HOME' 2>&1 | grep -x /user/gems
 "
 
 no_llama="
@@ -36,7 +36,10 @@ no_llama="
 test_bare() {
   run --rm -e ANTHROPIC_API_KEY=x ubuntu:24.04 sh /without-compilers sh -euc "
     $(fetch_packages ubuntu)
+    mkdir -p /root/.local/bin
+    printf '#!/bin/sh\n# elelem.sh installer\n' >/root/.local/bin/elelem
     sh /install 2>&1 | tee /log
+    [ ! -e /root/.local/bin/elelem ]
     grep 'an API key is set' /log
     $no_llama
     $demo
@@ -47,7 +50,10 @@ test_broken() {
   run --rm ubuntu:24.04 sh /without-compilers sh -euc "
     $(fetch_packages ubuntu)
     rm /usr/lib/*/libstdc++.so.6*
+    mkdir -p /root/.local/bin
+    echo mine >/root/.local/bin/elelem
     sh /install 2>&1 | tee /log
+    grep -x mine /root/.local/bin/elelem
     grep 'installing llama.cpp' /log
     grep 'llama.cpp does not load on this system' /log
     ! ls /root/.local/share/elelem/llama/* 2>/dev/null || exit 1
@@ -56,7 +62,7 @@ test_broken() {
   "
 }
 
-llama="ELELEM_GGUF_MODEL=/x elelem --help | grep 'default: llama'"
+llama="ELELEM_GGUF_MODEL=/x elelem-shell --help | grep 'default: llama'"
 
 test_image() {
   image=$1
@@ -84,7 +90,7 @@ test_image() {
   podman commit -q "$name" "$name" >/dev/null
   podman rm -f "$name" >/dev/null
   status=0
-  run --rm --network=none "$name" sh -euc "elelem -p demo 'echo ok' | grep 'exit 0'" || status=1
+  run --rm --network=none "$name" sh -euc "elelem-shell -p demo 'echo ok' | grep 'exit 0'" || status=1
   podman rmi -f "$name" >/dev/null
   return "$status"
 }

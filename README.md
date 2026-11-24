@@ -9,6 +9,12 @@ and providers.
 gem install elelem-shell
 ```
 
+Or, with no Ruby installed:
+
+```sh
+curl -fsSL https://elelem.sh/install | sh
+```
+
 Then run `elelem-shell`. It is `elelem` with elelem-tools, elelem-mcp and
 elelem-skills loaded.
 

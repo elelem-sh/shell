@@ -3,10 +3,11 @@ name: Install
 on:
   push:
     branches: [main]
-    paths: [static/install, bin/without-compilers, .github/workflows/install.yml]
+    paths: [install, bin/without-compilers, .github/workflows/install.yml]
   schedule:
     - cron: "41 9 * * 1"
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -27,23 +28,23 @@ jobs:
           persist-credentials: false
 
       - name: Install
-        run: bin/without-compilers sh static/install </dev/null
+        run: bin/without-compilers sh install </dev/null
 
       - name: Run
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          elelem --help >/dev/null
-          elelem -p demo "echo ok" </dev/null | grep "exit 0"
-          ELELEM_GGUF_MODEL=/x elelem --help | grep "default: llama"
+          elelem-shell --help >/dev/null
+          elelem-shell -p demo "echo ok" </dev/null | grep "exit 0"
+          ELELEM_GGUF_MODEL=/x elelem-shell --help | grep "default: llama"
 
       - name: Install again
-        run: bin/without-compilers sh static/install </dev/null
+        run: bin/without-compilers sh install </dev/null
 
       - name: Run after upgrade
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          elelem -p demo "echo ok" </dev/null | grep "exit 0"
-          ELELEM_GGUF_MODEL=/x elelem --help | grep "default: llama"
+          elelem-shell -p demo "echo ok" </dev/null | grep "exit 0"
+          ELELEM_GGUF_MODEL=/x elelem-shell --help | grep "default: llama"
 
   alpine:
     runs-on: ubuntu-latest
@@ -55,11 +56,11 @@ jobs:
 
       - name: Install and run without bash or a compiler
         run: |
-          docker run --rm -i -e ELELEM_NO_MODEL=1 -v "$PWD/static/install:/install:ro" alpine:3 sh -euc '
+          docker run --rm -i -e ELELEM_NO_MODEL=1 -v "$PWD/install:/install:ro" alpine:3 sh -euc '
             apk add -q curl xz
             sh /install
             export PATH="$HOME/.local/bin:$PATH"
-            elelem --help >/dev/null
-            elelem -p demo "echo ok" | grep "exit 0"
-            ELELEM_GGUF_MODEL=/x elelem --help | grep "default: llama"
+            elelem-shell --help >/dev/null
+            elelem-shell -p demo "echo ok" | grep "exit 0"
+            ELELEM_GGUF_MODEL=/x elelem-shell --help | grep "default: llama"
           ' </dev/null

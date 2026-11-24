@@ -73,6 +73,13 @@ check_wrapper() {
   fail "$wrapper already exists and was not written by this installer; remove it or set XDG_BIN_HOME, then run this again"
 }
 
+adopt_old_wrapper() {
+  old=$bin/elelem
+  [ -f "$old" ] && grep -qxF "$marker" "$old" || return 0
+  say "the command is now elelem-shell; removing $old"
+  if [ -e "$wrapper" ]; then rm -f "$old"; else mv "$old" "$wrapper"; fi
+}
+
 fetch_tools() {
   if [ "$os" = Darwin ]; then
     echo curl tar
@@ -182,7 +189,7 @@ write_wrapper() {
   cat >"$tmp" <<EOF
 #!/bin/sh
 $marker
-exec "$ruby" --disable=rubyopt -W0 -e '$(gem_paths); \$0 = "elelem"; load "$shell_home/bin/elelem-shell"' -- "\$@"
+exec "$ruby" --disable=rubyopt -W0 -e '$(gem_paths); \$0 = "elelem-shell"; load "$shell_home/bin/elelem-shell"' -- "\$@"
 EOF
   chmod 755 "$tmp"
   mv "$tmp" "$wrapper"
@@ -219,7 +226,7 @@ wants_local_model() {
 skip_local_model() {
   warn "$1"
   forced_local && exit 1
-  warn "elelem works without it: set an API key, or fix this and run the installer again"
+  warn "elelem-shell works without it: set an API key, or fix this and run the installer again"
 }
 
 supports_llama() {
@@ -316,7 +323,7 @@ hint_old_install() {
 }
 
 finish() {
-  say "Ready. Run: elelem"
+  say "Ready. Run: elelem-shell"
   case ":$PATH:" in
     *":$bin:"*) ;;
     *) say "add this to your shell profile: export PATH=\"$bin:\$PATH\"" ;;
@@ -334,7 +341,7 @@ main() {
   bin=${XDG_BIN_HOME:-$HOME/.local/bin}
   data=${XDG_DATA_HOME:-$HOME/.local/share}/elelem
   models=$HOME/.agents/models
-  wrapper=$bin/elelem
+  wrapper=$bin/elelem-shell
   unset RUBYOPT RUBYLIB BUNDLE_GEMFILE
   check_platform
   check_paths
@@ -343,6 +350,7 @@ main() {
   install_rv
   install_ruby
   install_shell
+  adopt_old_wrapper
   llama_home=$(previous_llama_home)
   write_wrapper
   install_local_model
