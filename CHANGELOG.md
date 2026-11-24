@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/elelem-sh/shell/compare/v0.4.0...v0.4.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* install the command as elelem-shell and leave elelem to the core gem ([5f60579](https://github.com/elelem-sh/shell/commit/5f6057954bd3dc7581fca28c76f5c04379d71d33))
+
 ## [0.4.0](https://github.com/elelem-sh/shell/compare/v0.3.0...v0.4.0) (2026-11-24)
 
 
