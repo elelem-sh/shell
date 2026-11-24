@@ -208,21 +208,6 @@ forced_local() {
   [ "${ELELEM_LOCAL:-}" = 1 ]
 }
 
-has_vendor_key() {
-  "$ruby" --disable=rubyopt -W0 -e "$(gem_paths)"'
-    require "elelem/shell"
-    env = ENV.to_h.except("ELELEM_PROVIDER", "ELELEM_GGUF_MODEL", "OLLAMA_HOST")
-    exit Elelem::Shell::DefaultProvider.new(env, models_dir: "/nonexistent").name == "demo" ? 1 : 0
-  '
-}
-
-wants_local_model() {
-  forced_local && return 0
-  has_vendor_key || return 0
-  say "an API key is set, so the local model is skipped; ELELEM_LOCAL=1 installs it anyway"
-  return 1
-}
-
 skip_local_model() {
   warn "$1"
   forced_local && exit 1
@@ -304,7 +289,6 @@ install_model() {
 }
 
 install_local_model() {
-  wants_local_model || return 0
   supports_llama || return 0
   if needs_model; then check_disk; fi
   llama_version=$(latest_version elelem-llama)
@@ -328,7 +312,7 @@ finish() {
     *":$bin:"*) ;;
     *) say "add this to your shell profile: export PATH=\"$bin:\$PATH\"" ;;
   esac
-  say "to use a hosted model, set its key first, such as: export ANTHROPIC_API_KEY=..."
+  say "to use a hosted model, set its key and pick it, such as: elelem-shell -p anthropic"
   hint_old_install
   remove="rm -rf $data $wrapper"
   if model_installed; then

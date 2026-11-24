@@ -29,17 +29,11 @@ module Elelem
       def detected
         return @detected if defined?(@detected)
 
-        @detected = value("ELELEM_PROVIDER") || keyed || local
+        @detected = value("ELELEM_PROVIDER") || ("llama" if llama?) || keyed || ("ollama" if value("OLLAMA_HOST"))
       end
 
       def keyed
         KEYS.find { |_, alternatives| alternatives.any? { |names| names.all? { |name| value(name) } } }&.first
-      end
-
-      def local
-        return "llama" if llama?
-
-        "ollama" if value("OLLAMA_HOST")
       end
 
       def llama?

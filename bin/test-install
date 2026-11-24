@@ -28,11 +28,6 @@ demo="
   GEM_HOME=/user/gems elelem-shell -p demo 'echo \$GEM_HOME' 2>&1 | grep -x /user/gems
 "
 
-no_llama="
-  ! grep 'installing llama.cpp' /log || exit 1
-  ! ls /root/.local/share/elelem/llama/* 2>/dev/null || exit 1
-"
-
 test_bare() {
   run --rm -e ANTHROPIC_API_KEY=x ubuntu:24.04 sh /without-compilers sh -euc "
     $(fetch_packages ubuntu)
@@ -40,9 +35,9 @@ test_bare() {
     printf '#!/bin/sh\n# elelem.sh installer\n' >/root/.local/bin/elelem
     sh /install 2>&1 | tee /log
     [ ! -e /root/.local/bin/elelem ]
-    grep 'an API key is set' /log
-    $no_llama
+    grep 'installing llama.cpp' /log
     $demo
+    ANTHROPIC_API_KEY=x ELELEM_GGUF_MODEL=/x elelem-shell --help | grep 'default: llama'
   "
 }
 

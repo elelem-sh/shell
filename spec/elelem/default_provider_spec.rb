@@ -119,10 +119,16 @@ RSpec.describe Elelem::Shell do
       expect(detect).to eq("demo")
     end
 
-    it "prefers an API key to a local model" do
+    it "prefers a local model to an API key" do
       add_model
 
-      expect(detect("ANTHROPIC_API_KEY" => "key")).to eq("anthropic")
+      expect(detect("ANTHROPIC_API_KEY" => "key")).to eq("llama")
+    end
+
+    it "picks the value of ELELEM_PROVIDER over a local model" do
+      add_model
+
+      expect(detect("ELELEM_PROVIDER" => "anthropic")).to eq("anthropic")
     end
 
     it "prefers a local model to ollama" do
