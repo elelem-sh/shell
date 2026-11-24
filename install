@@ -1,0 +1,353 @@
+#!/bin/sh
+set -eu
+
+rv_installer=https://github.com/spinel-coop/rv/releases/download/v0.7.2/rv-installer.sh
+rv_installer_sha256=0160f8c875b9ae6a52c1914ad1761a2673dbbe80b01aa9fb3f85f7169d19f962
+rubygems=https://rubygems.org/api/v1/versions
+model_url=https://huggingface.co/unsloth/Qwen3-4B-GGUF/resolve/22c9fc8a8c7700b76a1789366280a6a5a1ad1120/Qwen3-4B-UD-Q4_K_XL.gguf
+model_file=Qwen3-4B-UD-Q4_K_XL.gguf
+model_bytes=2546341152
+model_sha256=f6e3fb6c2cdc869d16e66c719e94f2c02095d195967230e759a2d77fe814c71f
+marker='# elelem.sh installer'
+
+say() {
+  printf 'elelem: %s\n' "$*"
+}
+
+warn() {
+  say "$*" >&2
+}
+
+fail() {
+  warn "$*"
+  exit 1
+}
+
+has() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+missing_commands() {
+  for tool in "$@"; do
+    has "$tool" || printf ' %s' "$tool"
+  done
+}
+
+sha256() {
+  if has sha256sum; then
+    sha256sum
+  else
+    shasum -a 256
+  fi | cut -d ' ' -f 1
+}
+
+bytes_in() {
+  if [ -f "$1" ]; then
+    wc -c <"$1" | tr -d ' '
+  else
+    echo 0
+  fi
+}
+
+check_platform() {
+  os=$(uname -s)
+  case "$os" in
+    Linux | Darwin) ;;
+    *) fail "only Linux and macOS are supported here; on Windows run: gem install --conservative elelem-shell elelem-llama, then run elelem-shell" ;;
+  esac
+  musl=no
+  if [ "$os" = Linux ] && ldd --version 2>&1 | grep -qi musl; then
+    musl=yes
+  fi
+}
+
+check_paths() {
+  case "$data$bin$models" in
+    *[\'\"\\\`\$#:]*) fail "the install paths must not contain quotes, backslashes, colons, \$ or #: $data $bin $models" ;;
+  esac
+}
+
+check_wrapper() {
+  [ -e "$wrapper" ] || return 0
+  grep -qxF "$marker" "$wrapper" && return 0
+  fail "$wrapper already exists and was not written by this installer; remove it or set XDG_BIN_HOME, then run this again"
+}
+
+fetch_tools() {
+  if [ "$os" = Darwin ]; then
+    echo curl tar
+  else
+    echo curl tar xz
+  fi
+}
+
+fetch_packages() {
+  if has apt-get; then
+    echo 'sudo apt-get install -y curl tar xz-utils'
+  elif has dnf; then
+    echo 'sudo dnf install -y curl tar xz'
+  elif has apk; then
+    echo 'sudo apk add curl tar xz'
+  elif has pacman; then
+    echo 'sudo pacman -S --needed curl tar xz'
+  fi
+}
+
+check_fetch_tools() {
+  missing=$(missing_commands $(fetch_tools))
+  [ -z "$missing" ] && return 0
+  warn "missing tools:$missing"
+  command=$(fetch_packages)
+  [ -n "$command" ] && warn "install them, then run this again: $command"
+  exit 1
+}
+
+find_rv() {
+  if has rv; then
+    command -v rv
+  elif [ -x "$bin/rv" ]; then
+    echo "$bin/rv"
+  elif [ -x "$HOME/.local/bin/rv" ]; then
+    echo "$HOME/.local/bin/rv"
+  fi
+}
+
+install_rv() {
+  rv=$(find_rv)
+  [ -n "$rv" ] && return 0
+  say "installing rv 0.7.2"
+  script=$(mktemp)
+  curl -LsSf --retry 3 -o "$script" "$rv_installer"
+  if [ "$(sha256 <"$script")" != "$rv_installer_sha256" ]; then
+    rm -f "$script"
+    fail "checksum mismatch for the rv installer; stopping"
+  fi
+  RV_NO_MODIFY_PATH=1 sh "$script"
+  rm -f "$script"
+  rv=$(find_rv)
+  [ -n "$rv" ] || fail "rv was not found after running its installer"
+}
+
+install_ruby() {
+  say "installing Ruby 4.0"
+  "$rv" ruby install 4.0
+  ruby=$("$rv" ruby find 4.0)
+  [ -x "$ruby" ] || fail "rv did not report where Ruby 4.0 is"
+  default_dir=$("$ruby" --disable=rubyopt -e 'print Gem.default_dir')
+}
+
+latest_version() {
+  found=$(curl -fsS --retry 3 "$rubygems/$1/latest.json" | sed -n 's/.*"version":"\([0-9][0-9.]*\)".*/\1/p')
+  [ -n "$found" ] || fail "could not read the latest version of $1 from rubygems.org"
+  echo "$found"
+}
+
+install_gem() {
+  GEM_HOME=$1 GEM_PATH=$2 "$ruby" "$(dirname "$ruby")/gem" install --norc --no-document --conservative "$3" -v "$4"
+}
+
+fingerprint() {
+  ls "$1/specifications" | LC_ALL=C sort | sha256 | cut -c 1-12
+}
+
+install_shell() {
+  version=$(latest_version elelem-shell)
+  say "installing elelem-shell $version"
+  mkdir -p "$data/gems"
+  fresh=$(mktemp -d "$data/gems/tmp.XXXXXX")
+  install_gem "$fresh" "$fresh:$default_dir" elelem-shell "$version"
+  shell_home=$data/gems/elelem-shell-$version-$(fingerprint "$fresh")
+  if [ -d "$shell_home" ]; then
+    rm -rf "$fresh"
+  else
+    mv "$fresh" "$shell_home"
+  fi
+}
+
+gem_paths() {
+  printf 'Gem.paths = { "GEM_HOME" => "%s", "GEM_PATH" => "%s" }' \
+    "$shell_home" "${llama_home:+$llama_home:}$shell_home:$default_dir"
+}
+
+previous_llama_home() {
+  [ -f "$wrapper" ] || return 0
+  previous=$(tr '":' '\n\n' <"$wrapper" | grep -F "$data/llama/elelem-llama-" | head -n 1)
+  [ -d "$previous" ] && echo "$previous"
+  return 0
+}
+
+write_wrapper() {
+  mkdir -p "$bin"
+  tmp=$(mktemp "$bin/.elelem.XXXXXX")
+  cat >"$tmp" <<EOF
+#!/bin/sh
+$marker
+exec "$ruby" --disable=rubyopt -W0 -e '$(gem_paths); \$0 = "elelem"; load "$shell_home/bin/elelem-shell"' -- "\$@"
+EOF
+  chmod 755 "$tmp"
+  mv "$tmp" "$wrapper"
+}
+
+remove_stale_homes() {
+  for home in "$data"/gems/* "$data"/llama/*; do
+    case "$home" in
+      "$shell_home" | "$llama_home") ;;
+      *) rm -rf "$home" ;;
+    esac
+  done
+}
+
+forced_local() {
+  [ "${ELELEM_LOCAL:-}" = 1 ]
+}
+
+has_vendor_key() {
+  "$ruby" --disable=rubyopt -W0 -e "$(gem_paths)"'
+    require "elelem/shell"
+    env = ENV.to_h.except("ELELEM_PROVIDER", "ELELEM_GGUF_MODEL", "OLLAMA_HOST")
+    exit Elelem::Shell::DefaultProvider.new(env, models_dir: "/nonexistent").name == "demo" ? 1 : 0
+  '
+}
+
+wants_local_model() {
+  forced_local && return 0
+  has_vendor_key || return 0
+  say "an API key is set, so the local model is skipped; ELELEM_LOCAL=1 installs it anyway"
+  return 1
+}
+
+skip_local_model() {
+  warn "$1"
+  forced_local && exit 1
+  warn "elelem works without it: set an API key, or fix this and run the installer again"
+}
+
+supports_llama() {
+  [ "$musl" = no ] && return 0
+  [ "$(uname -m)" = x86_64 ] && return 0
+  skip_local_model "the local model is skipped: llama.cpp is built for musl Linux (such as Alpine) on x86_64 only"
+  return 1
+}
+
+llama_loads() {
+  "$ruby" --disable=rubyopt -W0 -e "$(llama_home=$1 && gem_paths)"'
+    require "elelem/llama"
+    Elelem::Llama::Provider.backend
+  ' >/dev/null
+}
+
+has_llama() {
+  [ -d "$1" ] && llama_loads "$1"
+}
+
+fetch_llama() {
+  say "installing llama.cpp"
+  rm -rf "$1"
+  mkdir -p "$1"
+  install_gem "$1" "$1:$shell_home:$default_dir" elelem-llama "$2"
+}
+
+reject_llama() {
+  rm -rf "$1"
+  skip_local_model "the local model is skipped: $2"
+  return 1
+}
+
+install_llama() {
+  home=$data/llama/elelem-llama-$llama_version
+  if ! has_llama "$home"; then
+    fetch_llama "$home" "$llama_version" || reject_llama "$home" "llama.cpp did not compile; see the output above" || return 1
+    llama_loads "$home" || reject_llama "$home" "llama.cpp does not load on this system; see the error above" || return 1
+  fi
+  llama_home=$home
+}
+
+needs_model() {
+  [ "${ELELEM_NO_MODEL:-}" = 1 ] && return 1
+  [ -n "${ELELEM_GGUF_MODEL:-}" ] && return 1
+  [ ! -e "$models/default.gguf" ]
+}
+
+check_disk() {
+  [ -f "$models/$model_file" ] && return 0
+  mkdir -p "$models"
+  free=$(df -Pk "$models" | awk 'NR == 2 { print $4 }')
+  need=$(((model_bytes - $(bytes_in "$models/$model_file.part")) / 1024 * 11 / 10))
+  [ "$free" -ge "$need" ] && return 0
+  fail "not enough disk space in $models for the model: $((need / 1024)) MB needed, $((free / 1024)) MB free; ELELEM_NO_MODEL=1 skips it"
+}
+
+download_model() {
+  part=$models/$model_file.part
+  say "downloading $model_file (2.5 GB, set ELELEM_NO_MODEL=1 to skip)"
+  if [ "$(bytes_in "$part")" != "$model_bytes" ]; then
+    curl -fL -C - --retry 3 -o "$part" "$model_url"
+  fi
+  if [ "$(sha256 <"$part")" != "$model_sha256" ]; then
+    rm -f "$part"
+    fail "checksum mismatch for $model_file; the download was deleted, run this again"
+  fi
+  mv "$part" "$models/$model_file"
+}
+
+install_model() {
+  mkdir -p "$models"
+  [ -f "$models/$model_file" ] || download_model
+  ln -sf "$model_file" "$models/default.gguf"
+}
+
+install_local_model() {
+  wants_local_model || return 0
+  supports_llama || return 0
+  if needs_model; then check_disk; fi
+  llama_version=$(latest_version elelem-llama)
+  install_llama || return 0
+  write_wrapper
+  if needs_model; then install_model; fi
+}
+
+model_installed() {
+  [ "$(readlink "$models/default.gguf" 2>/dev/null)" = "$model_file" ]
+}
+
+hint_old_install() {
+  "$rv" tool list 2>/dev/null | grep -q elelem-shell || return 0
+  say "an older install is still in rv; optional cleanup: $rv tool uninstall elelem-shell"
+}
+
+finish() {
+  say "Ready. Run: elelem"
+  case ":$PATH:" in
+    *":$bin:"*) ;;
+    *) say "add this to your shell profile: export PATH=\"$bin:\$PATH\"" ;;
+  esac
+  say "to use a hosted model, set its key first, such as: export ANTHROPIC_API_KEY=..."
+  hint_old_install
+  remove="rm -rf $data $wrapper"
+  if model_installed; then
+    remove="$remove $models/default.gguf $models/$model_file"
+  fi
+  say "Uninstall: $remove"
+}
+
+main() {
+  bin=${XDG_BIN_HOME:-$HOME/.local/bin}
+  data=${XDG_DATA_HOME:-$HOME/.local/share}/elelem
+  models=$HOME/.agents/models
+  wrapper=$bin/elelem
+  unset RUBYOPT RUBYLIB BUNDLE_GEMFILE
+  check_platform
+  check_paths
+  check_wrapper
+  check_fetch_tools
+  install_rv
+  install_ruby
+  install_shell
+  llama_home=$(previous_llama_home)
+  write_wrapper
+  install_local_model
+  remove_stale_homes
+  finish
+}
+
+main "$@"

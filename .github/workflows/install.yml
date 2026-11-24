@@ -1,0 +1,65 @@
+name: Install
+
+on:
+  push:
+    branches: [main]
+    paths: [static/install, bin/without-compilers, .github/workflows/install.yml]
+  schedule:
+    - cron: "41 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      ELELEM_NO_MODEL: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Install
+        run: bin/without-compilers sh static/install </dev/null
+
+      - name: Run
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          elelem --help >/dev/null
+          elelem -p demo "echo ok" </dev/null | grep "exit 0"
+          ELELEM_GGUF_MODEL=/x elelem --help | grep "default: llama"
+
+      - name: Install again
+        run: bin/without-compilers sh static/install </dev/null
+
+      - name: Run after upgrade
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          elelem -p demo "echo ok" </dev/null | grep "exit 0"
+          ELELEM_GGUF_MODEL=/x elelem --help | grep "default: llama"
+
+  alpine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Install and run without bash or a compiler
+        run: |
+          docker run --rm -i -e ELELEM_NO_MODEL=1 -v "$PWD/static/install:/install:ro" alpine:3 sh -euc '
+            apk add -q curl xz
+            sh /install
+            export PATH="$HOME/.local/bin:$PATH"
+            elelem --help >/dev/null
+            elelem -p demo "echo ok" | grep "exit 0"
+            ELELEM_GGUF_MODEL=/x elelem --help | grep "default: llama"
+          ' </dev/null

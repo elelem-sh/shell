@@ -1,0 +1,21 @@
+#!/bin/sh
+
+set -eu
+[ -n "${DEBUG:-}" ] && set -x
+
+tripwires=$(mktemp -d)
+
+cat > "$tripwires/compiler" <<'TRIPWIRE'
+#!/bin/sh
+echo "$(basename "$0") ran, and nothing may compile here" >&2
+touch "$(dirname "$0")/tripped"
+exit 1
+TRIPWIRE
+chmod +x "$tripwires/compiler"
+
+for tool in cc c++ gcc g++ clang clang++ make gmake cmake; do
+  ln -s compiler "$tripwires/$tool"
+done
+
+PATH="$tripwires:$PATH" "$@"
+test ! -e "$tripwires/tripped"

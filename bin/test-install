@@ -1,0 +1,106 @@
+#!/bin/sh
+set -eu
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+installer=$root/static/install
+tripwire=$root/bin/without-compilers
+limit=${ELELEM_TEST_TIMEOUT:-2400}
+path=/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+failed=
+
+fetch_packages() {
+  case "$1" in
+    ubuntu* | debian*) echo 'apt-get update -qq && apt-get install -y -qq curl xz-utils >/dev/null' ;;
+    fedora*) echo 'dnf install -y -q curl tar xz' ;;
+    alpine*) echo 'apk add -q curl xz' ;;
+    *) echo "unknown image: $1" >&2; exit 1 ;;
+  esac
+}
+
+run() {
+  timeout "$limit" podman run ${ELELEM_TEST_PODMAN_OPTIONS:-} -i -e ELELEM_NO_MODEL=1 -e PATH="$path" \
+    -v "$installer:/install:ro,z" -v "$tripwire:/without-compilers:ro,z" "$@" </dev/null
+}
+
+demo="
+  elelem --help | grep -q 'Usage: elelem'
+  elelem -p demo 'echo ok' | grep 'exit 0'
+  GEM_HOME=/user/gems elelem -p demo 'echo \$GEM_HOME' 2>&1 | grep -x /user/gems
+"
+
+no_llama="
+  ! grep 'installing llama.cpp' /log || exit 1
+  ! ls /root/.local/share/elelem/llama/* 2>/dev/null || exit 1
+"
+
+test_bare() {
+  run --rm -e ANTHROPIC_API_KEY=x ubuntu:24.04 sh /without-compilers sh -euc "
+    $(fetch_packages ubuntu)
+    sh /install 2>&1 | tee /log
+    grep 'an API key is set' /log
+    $no_llama
+    $demo
+  "
+}
+
+test_broken() {
+  run --rm ubuntu:24.04 sh /without-compilers sh -euc "
+    $(fetch_packages ubuntu)
+    rm /usr/lib/*/libstdc++.so.6*
+    sh /install 2>&1 | tee /log
+    grep 'installing llama.cpp' /log
+    grep 'llama.cpp does not load on this system' /log
+    ! ls /root/.local/share/elelem/llama/* 2>/dev/null || exit 1
+    $demo
+    ! ELELEM_LOCAL=1 sh /install || exit 1
+  "
+}
+
+llama="ELELEM_GGUF_MODEL=/x elelem --help | grep 'default: llama'"
+
+test_image() {
+  image=$1
+  [ "$image" = fedora:44 ] && ! podman pull -q fedora:44 >/dev/null 2>&1 && image=fedora:latest
+  name=elelem-install-$$
+  podman rm -f "$name" >/dev/null 2>&1 || true
+  run --name "$name" "$image" sh /without-compilers sh -euc "
+    $(fetch_packages "$image")
+    sh /install 2>&1 | tee /log
+    grep 'installing llama.cpp' /log
+    $demo
+    $llama
+    homes=\$(ls -d /root/.local/share/elelem/*/*)
+    started=\$(date +%s)
+    sh /install 2>&1 | tee /log
+    echo \"rerun took \$((\$(date +%s) - started)) s\"
+    [ \$((\$(date +%s) - started)) -lt 60 ]
+    ! grep 'installing llama.cpp' /log || exit 1
+    [ \"\$homes\" = \"\$(ls -d /root/.local/share/elelem/*/*)\" ]
+    $demo
+    $llama
+    ANTHROPIC_API_KEY=x sh /install
+    $llama
+  " || { podman rm -f "$name" >/dev/null; return 1; }
+  podman commit -q "$name" "$name" >/dev/null
+  podman rm -f "$name" >/dev/null
+  status=0
+  run --rm --network=none "$name" sh -euc "elelem -p demo 'echo ok' | grep 'exit 0'" || status=1
+  podman rmi -f "$name" >/dev/null
+  return "$status"
+}
+
+[ $# -gt 0 ] || set -- bare broken ubuntu:24.04 fedora:44 alpine:3
+
+for target in "$@"; do
+  echo "== $target"
+  started=$(date +%s)
+  case "$target" in
+    bare) test_bare ;;
+    broken) test_broken ;;
+    *) test_image "$target" ;;
+  esac && result=ok || result=FAILED
+  [ "$result" = ok ] || failed="$failed $target"
+  echo "== $target: $result ($(($(date +%s) - started)) s)"
+done
+
+[ -z "$failed" ] || { echo "failed:$failed"; exit 1; }
