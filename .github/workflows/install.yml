@@ -34,10 +34,14 @@ jobs:
           key: models-${{ runner.os }}-${{ runner.arch }}-${{ steps.models.outputs.key }}
 
       - name: Install
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: bin/without-compilers sh install </dev/null
 
       - name: Chat
         timeout-minutes: 20
+        env:
+          ANTHROPIC_API_KEY: unused
         run: bin/nonce-chat
 
       - name: Run
@@ -48,6 +52,8 @@ jobs:
           ELELEM_GGUF_MODEL=/x elelem-shell --help | grep "default: llama"
 
       - name: Install again
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: bin/without-compilers sh install </dev/null
 
       - name: Run after upgrade
@@ -73,9 +79,11 @@ jobs:
           key: models-alpine-${{ steps.models.outputs.key }}
 
       - name: Install, run and chat without bash or a compiler
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           mkdir -p ~/.agents/models
-          docker run --rm -i -v "$PWD/install:/install:ro" -v "$PWD/bin/nonce-chat:/nonce-chat:ro" \
+          docker run --rm -i -e GITHUB_TOKEN -v "$PWD/install:/install:ro" -v "$PWD/bin/nonce-chat:/nonce-chat:ro" \
             -v "$HOME/.agents/models:/root/.agents/models" alpine:3 sh -euc '
             apk add -q curl xz
             sh /install
