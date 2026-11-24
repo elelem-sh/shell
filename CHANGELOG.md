@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0](https://github.com/elelem-sh/shell/compare/v0.3.0...v0.4.0) (2026-11-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* require elelem 0.17 and drop the ask and help subcommands from the specs
+
+### Bug Fixes
+
+* require elelem 0.17 and drop the ask and help subcommands from the specs ([5dc2927](https://github.com/elelem-sh/shell/commit/5dc2927b77ff7bf67ca4c4c175813099c821c797))
+
 ## [0.3.0](https://github.com/elelem-sh/shell/compare/v0.2.1...v0.3.0) (2026-11-20)
 
 
