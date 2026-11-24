@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.5.0](https://github.com/elelem-sh/shell/compare/v0.4.1...v0.5.0) (2026-11-24)
+
+
+### Features
+
+* install Qwen3.5 4B, or 2B below 12 GiB of RAM, refuse old glibc and 32-bit or RISC-V hosts, retry gem installs and end with a summary ([dc9c914](https://github.com/elelem-sh/shell/commit/dc9c914f67b8f9d89f9e3a4c3279dfa665944b2e))
+* install Qwen3.5 4B, or 2B below 12 GiB of RAM, refuse old glibc and 32-bit or RISC-V hosts, retry gem installs and end with a summary ([16c3bfd](https://github.com/elelem-sh/shell/commit/16c3bfd793b657fd0b73761ce15f9ef158b8818c))
+* prefer the local model to hosted keys and install it even when a key is set ([d883229](https://github.com/elelem-sh/shell/commit/d88322938da8e859e60a3cc27676fe61ee7d6851))
+
+
+### Bug Fixes
+
+* require elelem 0.18 for the banner and whole-file read ([7a2b45f](https://github.com/elelem-sh/shell/commit/7a2b45f41549577c07eaa791a48948b0471a2102))
+
+
+### Reverts
+
+* hold the Qwen3.5 installer default until the model check decides 2B or 4B ([eed508c](https://github.com/elelem-sh/shell/commit/eed508ce2dceb0b9d0aa118dfef861d5e4d541cd))
+
 ## [0.4.1](https://github.com/elelem-sh/shell/compare/v0.4.0...v0.4.1) (2026-11-24)
 
 
