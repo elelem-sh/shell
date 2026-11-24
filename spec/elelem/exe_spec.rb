@@ -29,45 +29,45 @@ RSpec.describe "exe/elelem-shell" do
   end
 
   it "runs elelem, reading a file with the demo provider" do
-    output, error, status = run("ask", "@Gemfile")
+    output, error, status = run("@Gemfile")
 
     expect(status).to be_success
     expect(output + error).to include('gemspec name: "elelem-shell"')
   end
 
   it "prints its usage" do
-    output, _, status = run("help")
+    output, _, status = run("--help")
 
     expect(status).to be_success
     expect(output).to include("Usage: elelem-shell")
   end
 
   it "shows the detected provider as the default" do
-    output, = run("help", "MISTRAL_API_KEY" => "key", "MISTRAL_MODEL" => "model")
+    output, = run("--help", "MISTRAL_API_KEY" => "key", "MISTRAL_MODEL" => "model")
 
     expect(output).to include("(default: mistral)")
   end
 
   it "says so when it falls back to the demo provider" do
-    _, error, = run("help")
+    _, error, = run("--help")
 
     expect(error).to eq("#{Elelem::Shell::NOTICE}\n")
   end
 
   it "stays quiet when a provider is detected" do
-    _, error, = run("help", "ELELEM_PROVIDER" => "demo")
+    _, error, = run("--help", "ELELEM_PROVIDER" => "demo")
 
     expect(error).to be_empty
   end
 
   it "stays quiet when -p picks the provider" do
-    _, error, = run("help", "-p", "demo")
+    _, error, = run("--help", "-p", "demo")
 
     expect(error).to be_empty
   end
 
   it "stays quiet when --provider picks the provider" do
-    _, error, = run("help", "--provider=demo")
+    _, error, = run("--help", "--provider=demo")
 
     expect(error).to be_empty
   end
