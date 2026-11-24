@@ -1,0 +1,13 @@
+#!/bin/sh
+# Chat with the installed local model: it must read a file and repeat the nonce in it.
+set -eu
+
+export PATH="$HOME/.local/bin:$PATH"
+dir=$(mktemp -d)
+cd "$dir"
+nonce=$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')
+printf '%s\n' "$nonce" >nonce.txt
+started=$(date +%s)
+elelem-shell "Read nonce.txt and tell me exactly what it says." </dev/null | tee said.txt
+echo "the chat took $(($(date +%s) - started)) s"
+grep -q "$nonce" said.txt || { echo "the answer does not contain the nonce $nonce" >&2; exit 1; }
