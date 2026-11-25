@@ -257,7 +257,7 @@ forced_local() {
 skip_local_model() {
   warn "$1"
   forced_local && exit 1
-  warn "elelem-shell works without it: set an API key, or fix this and run the installer again"
+  warn "elelem-shell works without it: pick a hosted provider with -p, or fix this and run the installer again"
 }
 
 supports_llama() {
@@ -363,7 +363,9 @@ profile_line() {
 }
 
 model_in_use() {
-  if [ -n "${ELELEM_GGUF_MODEL:-}" ]; then
+  if [ ! -d "$llama_home" ]; then
+    echo none
+  elif [ -n "${ELELEM_GGUF_MODEL:-}" ]; then
     echo "$ELELEM_GGUF_MODEL"
   elif [ -L "$models/default.gguf" ]; then
     readlink "$models/default.gguf"
@@ -372,13 +374,6 @@ model_in_use() {
   else
     echo none
   fi
-}
-
-provider_in_use() {
-  "$ruby" --disable=rubyopt -W0 -e "$(gem_paths)"'
-    require "elelem/shell"
-    print Elelem::Shell::DefaultProvider.new.name
-  ' 2>/dev/null || echo unknown
 }
 
 finish() {
@@ -398,7 +393,6 @@ finish() {
       ;;
   esac
   say "model: $(model_in_use)"
-  say "provider: $(provider_in_use)"
   say "Ready. Run: $command"
 }
 

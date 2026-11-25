@@ -37,7 +37,7 @@ test_bare() {
     [ ! -e /root/.local/bin/elelem ]
     grep 'installing llama.cpp' /log
     $demo
-    ANTHROPIC_API_KEY=x ELELEM_GGUF_MODEL=/x elelem-shell --help | grep 'default: llama'
+    ANTHROPIC_API_KEY=x ELELEM_GGUF_MODEL=/x elelem-shell hi </dev/null 2>&1 | grep 'loading x'
   "
 }
 
@@ -57,7 +57,7 @@ test_broken() {
   "
 }
 
-llama="ELELEM_GGUF_MODEL=/x elelem-shell --help | grep 'default: llama'"
+llama="ELELEM_GGUF_MODEL=/x elelem-shell hi </dev/null 2>&1 | grep 'loading x'"
 
 test_image() {
   image=$1

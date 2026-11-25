@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.summary = "elelem with its pure Ruby plugins and providers in one install."
   spec.description = "Installs elelem with the tools, mcp, skills and server plugins and the " \
                      "anthropic, cerebras, cloudflare, gemini, github, groq, mistral, ollama, " \
-                     "openai and openrouter providers, and picks a default provider from the environment."
+                     "openai and openrouter providers. Uses elelem-llama by default when it is installed."
   spec.homepage = "https://elelem.sh"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 4.0.0"

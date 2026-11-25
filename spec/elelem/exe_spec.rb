@@ -5,13 +5,6 @@ require "tmpdir"
 
 RSpec.describe "exe/elelem-shell" do
   let(:root) { File.expand_path("../..", __dir__) }
-  let(:detected) do
-    %w[ELELEM_PROVIDER ANTHROPIC_API_KEY OPENAI_API_KEY OPENAI_BASE_URL GEMINI_API_KEY OPENROUTER_API_KEY
-       GROQ_API_KEY MISTRAL_API_KEY CEREBRAS_API_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ELELEM_GGUF_MODEL
-       MISTRAL_MODEL
-       OLLAMA_HOST]
-  end
-
   around do |example|
     Dir.mktmpdir do |home|
       @home = home
@@ -21,15 +14,23 @@ RSpec.describe "exe/elelem-shell" do
 
   def env(overrides = {})
     gems = { "HOME" => @home, "GEM_HOME" => Gem.dir, "GEM_PATH" => Gem.path.join(File::PATH_SEPARATOR) }
-    detected.to_h { |name| [name, nil] }.merge(gems, overrides)
+    { "ELELEM_PROVIDER" => nil, "ELELEM_GGUF_MODEL" => nil }.merge(gems, overrides)
   end
 
   def run(*, **overrides)
     Open3.capture3(env(overrides), RbConfig.ruby, "-I", "#{root}/lib", "#{root}/exe/elelem-shell", *, chdir: root)
   end
 
+  def with_llama(source)
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, "elelem"))
+      File.write(File.join(dir, "elelem", "llama.rb"), source)
+      yield [dir, ENV.fetch("RUBYLIB", nil)].compact.join(File::PATH_SEPARATOR)
+    end
+  end
+
   it "runs elelem, reading a file with the demo provider" do
-    output, error, status = run("@Gemfile")
+    output, error, status = run("@Gemfile", "-p", "demo")
 
     expect(status).to be_success
     expect(output + error).to include('gemspec name: "elelem-shell"')
@@ -42,33 +43,47 @@ RSpec.describe "exe/elelem-shell" do
     expect(output).to include("Usage: elelem-shell")
   end
 
-  it "shows the detected provider as the default" do
-    output, = run("--help", "MISTRAL_API_KEY" => "key", "MISTRAL_MODEL" => "model")
+  it "runs the demo provider, saying so, when elelem-llama is not installed" do
+    output, error, status = run("@Gemfile", "ANTHROPIC_API_KEY" => "key")
+
+    expect(status).to be_success
+    expect(output + error).to include(Elelem::Shell::NOTICE, 'gemspec name: "elelem-shell"')
+  end
+
+  it "runs elelem-llama by default, despite an API key" do
+    with_llama("Elelem.configure { |config| config.provider(:llama) { raise 'llama ran' } }") do |llama|
+      _, error, = run("hi", "ANTHROPIC_API_KEY" => "key", "RUBYLIB" => llama)
+
+      expect(error).to eq("elelem: llama ran\n")
+    end
+  end
+
+  it "reports a broken elelem-llama instead of running the demo provider" do
+    with_llama('require "elelem/missing"') do |llama|
+      _, error, status = run("echo ran", "RUBYLIB" => llama)
+
+      expect(status).not_to be_success
+      expect(error).to eq("elelem: cannot load such file -- elelem/missing\n")
+    end
+  end
+
+  it "runs the provider -p names despite a broken elelem-llama" do
+    with_llama('require "elelem/missing"') do |llama|
+      _, _, status = run("@Gemfile", "-p", "demo", "RUBYLIB" => llama)
+
+      expect(status).to be_success
+    end
+  end
+
+  it "uses ELELEM_PROVIDER" do
+    output, = run("--help", "ELELEM_PROVIDER" => "mistral")
 
     expect(output).to include("(default: mistral)")
   end
 
-  it "says so when it falls back to the demo provider" do
-    _, error, = run("--help")
+  it "ignores a blank ELELEM_PROVIDER" do
+    output, = run("--help", "ELELEM_PROVIDER" => " ")
 
-    expect(error).to eq("#{Elelem::Shell::NOTICE}\n")
-  end
-
-  it "stays quiet when a provider is detected" do
-    _, error, = run("--help", "ELELEM_PROVIDER" => "demo")
-
-    expect(error).to be_empty
-  end
-
-  it "stays quiet when -p picks the provider" do
-    _, error, = run("--help", "-p", "demo")
-
-    expect(error).to be_empty
-  end
-
-  it "stays quiet when --provider picks the provider" do
-    _, error, = run("--help", "--provider=demo")
-
-    expect(error).to be_empty
+    expect(output).to include("(default: default)")
   end
 end

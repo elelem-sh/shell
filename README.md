@@ -20,25 +20,18 @@ elelem-skills loaded.
 
 ## Default provider
 
-Pick a provider with `-p NAME`. Without `-p`, the first match wins:
+Pick a provider with `-p NAME` or `ELELEM_PROVIDER`. With neither,
+`elelem-shell` runs llama when elelem-llama is installed, and demo when it is
+not. demo calls no model: it runs each prompt as a command. An API key never
+picks a provider.
 
-1. `ELELEM_PROVIDER`, its value
-2. `ANTHROPIC_API_KEY`, anthropic
-3. `OPENAI_API_KEY` or `OPENAI_BASE_URL`, openai
-4. `GEMINI_API_KEY` and `GEMINI_MODEL`, gemini
-5. `OPENROUTER_API_KEY` and `OPENROUTER_MODEL`, openrouter; `GROQ_API_KEY` and
-   `GROQ_MODEL`, groq; `MISTRAL_API_KEY` and `MISTRAL_MODEL`, mistral;
-   `CEREBRAS_API_KEY` and `CEREBRAS_MODEL`, cerebras
-6. `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_MODEL`,
-   cloudflare
-7. llama, when elelem-llama is installed and `ELELEM_GGUF_MODEL` is set, or
-   `~/.agents/models` holds `default.gguf` or exactly one `.gguf` file
-8. `OLLAMA_HOST`, ollama
-9. demo, which calls no model
+A blank `ELELEM_PROVIDER` counts as unset. A plugin can replace the default:
 
-A variable that is set but blank counts as unset. The hosted providers in
-4 to 6 have no default model, so their key alone is not enough. `GITHUB_TOKEN`
-is not detected; use `-p github`.
+```ruby
+Elelem.configure do |config|
+  config.provider(:default) { |**options| config.build_provider(:anthropic, **options) }
+end
+```
 
 To run it without installing, use [rv](https://rv.dev):
 

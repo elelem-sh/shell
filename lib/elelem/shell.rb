@@ -4,7 +4,6 @@ require "elelem"
 require "elelem/cli"
 
 require_relative "shell/version"
-require_relative "shell/default_provider"
 
 require "elelem/tools"
 require "elelem/mcp"
@@ -12,18 +11,24 @@ require "elelem/skills"
 
 module Elelem
   module Shell
-    PROVIDER_FLAG = /\A(-p|--pro)/
-    NOTICE = "elelem: no model or API key found; using the demo provider. " \
-             "Run curl -fsSL https://elelem.sh/install | sh, or set ANTHROPIC_API_KEY or OPENAI_API_KEY."
+    NOTICE = "elelem: elelem-llama is not available; using the demo provider, which runs each prompt as a command. " \
+             "Run curl -fsSL https://elelem.sh/install | sh, or pick a provider with -p.\n"
 
-    def self.default_provider(env = ENV, models_dir: "~/.agents/models")
-      DefaultProvider.new(env, models_dir: models_dir).name
+    def self.start(args, env: ENV)
+      name = env["ELELEM_PROVIDER"].to_s.strip
+      CLI.new(args, provider: name.empty? ? "default" : name).run
     end
+  end
+end
 
-    def self.start(args, env: ENV, models_dir: "~/.agents/models", err: $stderr)
-      default = DefaultProvider.new(env, models_dir: models_dir)
-      err.puts(NOTICE) if default.fallback? && args.grep(PROVIDER_FLAG).empty?
-      CLI.new(args, provider: default.name).run
-    end
+Elelem.configure do |config|
+  config.provider(:default) do |**options|
+    require "elelem/llama"
+    Elelem::Config.build_provider("llama", **options)
+  rescue LoadError => e
+    raise unless e.path == "elelem/llama"
+
+    $stderr.write Elelem::Shell::NOTICE
+    Elelem::Config.build_provider("demo", **options)
   end
 end
