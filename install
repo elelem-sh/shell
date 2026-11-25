@@ -392,7 +392,11 @@ finish() {
       say "$bin is not on your PATH; $(profile_line)"
       ;;
   esac
-  say "model: $(model_in_use)"
+  model=$(model_in_use)
+  say "model: $model"
+  if [ "$model" = none ] && [ -d "$llama_home" ]; then
+    say "no model yet: set ELELEM_GGUF_MODEL to a .gguf file, or pick a hosted provider with -p"
+  fi
   say "Ready. Run: $command"
 }
 
