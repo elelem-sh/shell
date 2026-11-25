@@ -14,7 +14,8 @@ RSpec.describe "exe/elelem-shell" do
 
   def env(overrides = {})
     gems = { "HOME" => @home, "GEM_HOME" => Gem.dir, "GEM_PATH" => Gem.path.join(File::PATH_SEPARATOR) }
-    { "ELELEM_PROVIDER" => nil, "ELELEM_GGUF_MODEL" => nil }.merge(gems, overrides)
+    bundle = { "RUBYOPT" => "-rbundler/setup", "BUNDLE_GEMFILE" => ENV.fetch("BUNDLE_GEMFILE", "#{root}/Gemfile") }
+    { "ELELEM_PROVIDER" => nil, "ELELEM_GGUF_MODEL" => nil }.merge(gems, bundle, overrides)
   end
 
   def run(*, **overrides)
