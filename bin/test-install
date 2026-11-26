@@ -53,6 +53,7 @@ test_broken() {
     grep 'llama.cpp does not load on this system' /log
     ! ls /root/.local/share/elelem/llama/* 2>/dev/null || exit 1
     $demo
+    elelem-shell hi </dev/null 2>&1 | grep 'elelem-llama is not available'
     ! ELELEM_LOCAL=1 sh /install || exit 1
   "
 }
