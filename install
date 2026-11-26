@@ -4,9 +4,7 @@ set -eu
 rv_installer=https://github.com/spinel-coop/rv/releases/download/v0.7.2/rv-installer.sh
 rv_installer_sha256=0160f8c875b9ae6a52c1914ad1761a2673dbbe80b01aa9fb3f85f7169d19f962
 rubygems=https://rubygems.org/api/v1/versions
-huggingface=https://huggingface.co/unsloth
 previous_model_file=Qwen3-4B-UD-Q4_K_XL.gguf
-small_memory_kb=12582912
 marker='# elelem.sh installer'
 
 say() {
@@ -40,14 +38,6 @@ sha256() {
   fi | cut -d ' ' -f 1
 }
 
-bytes_in() {
-  if [ -f "$1" ]; then
-    wc -c <"$1" | tr -d ' '
-  else
-    echo 0
-  fi
-}
-
 check_platform() {
   os=$(uname -s)
   case "$os" in
@@ -75,30 +65,6 @@ check_glibc() {
   minor=${minor%%.*}
   [ "$major" -gt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -ge 35 ]; } && return 0
   fail "glibc $glibc is too old; elelem needs glibc 2.35 or newer, such as Ubuntu 22.04, Debian 12 or Fedora 36"
-}
-
-memory_kb() {
-  if [ "$os" = Darwin ]; then
-    echo $(($(sysctl -n hw.memsize) / 1024))
-  else
-    awk '/^MemTotal:/ { print $2 }' /proc/meminfo
-  fi
-}
-
-choose_model() {
-  if [ "$(memory_kb)" -lt "$small_memory_kb" ]; then
-    model_file=Qwen3.5-2B-Q4_K_M.gguf
-    model_url=$huggingface/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/$model_file
-    model_bytes=1280835840
-    model_sha256=aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
-    model_size="1.3 GB"
-  else
-    model_file=Qwen3.5-4B-Q4_K_M.gguf
-    model_url=$huggingface/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/$model_file
-    model_bytes=2740937888
-    model_sha256=00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4
-    model_size="2.7 GB"
-  fi
 }
 
 check_paths() {
@@ -306,46 +272,25 @@ needs_model() {
   [ ! -e "$models/default.gguf" ] || [ "$(readlink "$models/default.gguf")" = "$previous_model_file" ]
 }
 
-check_disk() {
-  [ -f "$models/$model_file" ] && return 0
-  mkdir -p "$models"
-  free=$(df -Pk "$models" | awk 'NR == 2 { print $4 }')
-  need=$(((model_bytes - $(bytes_in "$models/$model_file.part")) / 1024 * 11 / 10))
-  [ "$free" -ge "$need" ] && return 0
-  fail "not enough disk space in $models for the model: $((need / 1024)) MB needed, $((free / 1024)) MB free; ELELEM_NO_MODEL=1 skips it"
-}
-
-download_model() {
-  part=$models/$model_file.part
-  say "downloading $model_file ($model_size, set ELELEM_NO_MODEL=1 to skip)"
-  if [ "$(bytes_in "$part")" != "$model_bytes" ]; then
-    curl -fL -C - --retry 3 -o "$part" "$model_url"
-  fi
-  if [ "$(sha256 <"$part")" != "$model_sha256" ]; then
-    rm -f "$part"
-    fail "checksum mismatch for $model_file; the download was deleted, run this again"
-  fi
-  mv "$part" "$models/$model_file"
+pull_model() {
+  "$ruby" --disable=rubyopt -W0 -e "$(gem_paths); load \"$llama_home/bin/elelem-llama\"" -- --pull --default
 }
 
 install_model() {
-  mkdir -p "$models"
-  [ -f "$models/$model_file" ] || download_model
-  ln -sf "$model_file" "$models/default.gguf"
-  rm -f "$models/$previous_model_file"
+  rm -f "$models"/*.gguf.part
+  if pull_model; then
+    rm -f "$models/$previous_model_file"
+  else
+    skip_local_model "the model did not download; see the error above, or set ELELEM_NO_MODEL=1 to skip it"
+  fi
 }
 
 install_local_model() {
   supports_llama || return 0
-  if needs_model; then check_disk; fi
   llama_version=$(latest_version elelem-llama)
   install_llama || return 0
   write_wrapper
   if needs_model; then install_model; fi
-}
-
-model_installed() {
-  [ "$(readlink "$models/default.gguf" 2>/dev/null)" = "$model_file" ]
 }
 
 hint_old_install() {
@@ -368,7 +313,7 @@ model_in_use() {
   elif [ -n "${ELELEM_GGUF_MODEL:-}" ]; then
     echo "$ELELEM_GGUF_MODEL"
   elif [ -L "$models/default.gguf" ]; then
-    readlink "$models/default.gguf"
+    echo "$models/$(readlink "$models/default.gguf")"
   elif [ -e "$models/default.gguf" ]; then
     echo "$models/default.gguf"
   else
@@ -378,11 +323,7 @@ model_in_use() {
 
 finish() {
   hint_old_install
-  remove="rm -rf $data $wrapper"
-  if model_installed; then
-    remove="$remove $models/default.gguf $models/$model_file"
-  fi
-  say "Uninstall: $remove"
+  say "Uninstall: rm -rf $data $wrapper"
   say "to use a hosted model, set its key and pick it, such as: elelem-shell -p anthropic"
   command=elelem-shell
   case ":$PATH:" in
@@ -407,7 +348,6 @@ main() {
   wrapper=$bin/elelem-shell
   unset RUBYOPT RUBYLIB BUNDLE_GEMFILE
   check_platform
-  choose_model
   check_paths
   check_wrapper
   check_fetch_tools

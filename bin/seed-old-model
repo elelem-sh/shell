@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+models=$HOME/.agents/models
+mkdir -p "$models"
+echo old >"$models/Qwen3-4B-UD-Q4_K_XL.gguf"
+ln -sf Qwen3-4B-UD-Q4_K_XL.gguf "$models/default.gguf"
+echo partial >"$models/Qwen3.5-4B-Q4_K_M.gguf.part"

@@ -3,7 +3,7 @@ name: Install
 on:
   push:
     branches: [main]
-    paths: [install, bin/without-compilers, bin/nonce-chat, .github/workflows/install.yml]
+    paths: [install, bin/without-compilers, bin/nonce-chat, bin/seed-old-model, bin/check-model, .github/workflows/install.yml]
   schedule:
     - cron: "41 9 * * 1"
   workflow_dispatch:
@@ -25,18 +25,22 @@ jobs:
         with:
           persist-credentials: false
 
-      - id: models
-        run: echo "key=$(grep -E 'model_sha256=' install | shasum -a 256 | cut -c 1-16)" >>"$GITHUB_OUTPUT"
-
       - uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ~/.agents/models
-          key: models-${{ runner.os }}-${{ runner.arch }}-${{ steps.models.outputs.key }}
+          key: models-v2-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Seed an older install
+        run: bin/seed-old-model
 
       - name: Install
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          ELELEM_LOCAL: 1
         run: bin/without-compilers sh install </dev/null
+
+      - name: Check the model
+        run: bin/check-model
 
       - name: Chat
         timeout-minutes: 20
@@ -54,6 +58,7 @@ jobs:
       - name: Install again
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          ELELEM_LOCAL: 1
         run: bin/without-compilers sh install </dev/null
 
       - name: Run after upgrade
@@ -70,23 +75,22 @@ jobs:
         with:
           persist-credentials: false
 
-      - id: models
-        run: echo "key=$(grep -E 'model_sha256=' install | shasum -a 256 | cut -c 1-16)" >>"$GITHUB_OUTPUT"
-
       - uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ~/.agents/models
-          key: models-alpine-${{ steps.models.outputs.key }}
+          key: models-v2-alpine
 
       - name: Install, run and chat without bash or a compiler
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p ~/.agents/models
-          docker run --rm -i -e GITHUB_TOKEN -v "$PWD/install:/install:ro" -v "$PWD/bin/nonce-chat:/nonce-chat:ro" \
+          bin/seed-old-model
+          docker run --rm -i -e GITHUB_TOKEN -e ELELEM_LOCAL=1 -v "$PWD/install:/install:ro" \
+            -v "$PWD/bin/nonce-chat:/nonce-chat:ro" -v "$PWD/bin/check-model:/check-model:ro" \
             -v "$HOME/.agents/models:/root/.agents/models" alpine:3 sh -euc '
             apk add -q curl xz
             sh /install
+            sh /check-model
             export PATH="$HOME/.local/bin:$PATH"
             elelem-shell --help >/dev/null
             elelem-shell -p demo "echo ok" | grep "exit 0"

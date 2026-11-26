@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+models=$HOME/.agents/models
+data=${XDG_DATA_HOME:-$HOME/.local/share}/elelem
+[ ! -e "$models/Qwen3-4B-UD-Q4_K_XL.gguf" ] || { echo "the older model is still there" >&2; exit 1; }
+! ls "$models"/*.gguf.part 2>/dev/null || { echo "an unfinished download is still there" >&2; exit 1; }
+readlink "$models/default.gguf" | grep -xE 'Qwen3\.5-[24]B-Q4_K_M\.gguf'
+ruby=$(sed -n 's/^exec "\([^"]*\)".*/\1/p' "${XDG_BIN_HOME:-$HOME/.local/bin}/elelem-shell")
+llama=$(echo "$data"/llama/elelem-llama-*)
+shell=$(echo "$data"/gems/elelem-shell-*)
+GEM_HOME=$llama GEM_PATH="$llama:$shell:" "$ruby" --disable=rubyopt -W0 "$llama/bin/elelem-llama" --pull nobody/none 2>&1 |
+  grep "not found"
