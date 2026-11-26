@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.0](https://github.com/elelem-sh/shell/compare/v0.5.0...v0.6.0) (2026-11-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* use the default provider instead of detecting one from the environment
+
+### Features
+
+* use the default provider instead of detecting one from the environment ([2be8890](https://github.com/elelem-sh/shell/commit/2be8890db6de0622205b041dc37a84fa24d9b0c8))
+
+
+### Bug Fixes
+
+* run the exe specs inside the bundle so a global elelem-llama is not loaded ([457d31a](https://github.com/elelem-sh/shell/commit/457d31a9a37043e19fe5ce8c24b6db015d32f512))
+* say how to pick a model when llama is installed without one ([03bfb94](https://github.com/elelem-sh/shell/commit/03bfb94e430e381d5b904cd9baede8324751043d))
+
 ## [0.5.0](https://github.com/elelem-sh/shell/compare/v0.4.1...v0.5.0) (2026-11-24)
 
 
