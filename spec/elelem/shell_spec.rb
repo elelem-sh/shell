@@ -11,6 +11,10 @@ RSpec.describe "elelem/shell" do
     expect(session.commands.names).to include("/skills")
   end
 
+  it "adds the elelem-hub commands" do
+    expect(session.commands.names).to include("/login", "/logout")
+  end
+
   it "loads elelem-mcp" do
     expect(require("elelem/mcp")).to be(false)
   end

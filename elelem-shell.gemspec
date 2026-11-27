@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email = ["mo@mokhan.ca"]
 
   spec.summary = "elelem with its pure Ruby plugins and providers in one install."
-  spec.description = "Installs elelem with the tools, mcp, skills and server plugins and the " \
+  spec.description = "Installs elelem with the tools, mcp, skills, hub and server plugins and the " \
                      "anthropic, cerebras, cloudflare, gemini, github, groq, mistral, ollama, " \
                      "openai and openrouter providers. Uses elelem-llama by default when it is installed."
   spec.homepage = "https://elelem.sh"
@@ -32,6 +32,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "elelem-gemini", ">= 0.1", "< 1"
   spec.add_dependency "elelem-github", ">= 0.1", "< 1"
   spec.add_dependency "elelem-groq", ">= 0.1", "< 1"
+  spec.add_dependency "elelem-hub", ">= 0.1", "< 1"
   spec.add_dependency "elelem-mcp", ">= 0.2", "< 1"
   spec.add_dependency "elelem-mistral", ">= 0.1", "< 1"
   spec.add_dependency "elelem-ollama", ">= 0.2", "< 1"

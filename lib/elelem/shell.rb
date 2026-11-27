@@ -8,6 +8,7 @@ require_relative "shell/version"
 require "elelem/tools"
 require "elelem/mcp"
 require "elelem/skills"
+require "elelem/hub"
 
 module Elelem
   module Shell
