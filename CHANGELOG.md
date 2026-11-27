@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/elelem-sh/shell/compare/v0.6.0...v0.7.0) (2026-11-27)
+
+
+### Features
+
+* download the model with elelem-llama --pull ([cfd3887](https://github.com/elelem-sh/shell/commit/cfd3887050c5b144a505fc7399930ff5691d4ea9))
+* sign in to an elelem hub with /login ([e8da877](https://github.com/elelem-sh/shell/commit/e8da877caa799b539e1a888aa79c8361b6dd8ef9))
+
 ## [0.6.0](https://github.com/elelem-sh/shell/compare/v0.5.0...v0.6.0) (2026-11-26)
 
 
